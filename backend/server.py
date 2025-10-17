@@ -44,6 +44,9 @@ DATABASE_CONFIG = {
 
 AGENT_API_URL = os.getenv('AGENT_API_URL', 'http://localhost:8000')
 PORT = int(os.getenv('BACKEND_PORT', 3001))
+# Bind settings (for running on VPS IPv4)
+BACKEND_BIND_HOST = os.getenv('BACKEND_BIND_HOST', '0.0.0.0')
+BACKEND_BIND_PORT = int(os.getenv('BACKEND_BIND_PORT', PORT))
 
 # Pool de conexões global
 db_pool: Optional[SimpleConnectionPool] = None
@@ -608,11 +611,11 @@ async def get_consumption_dashboard(
 if __name__ == "__main__":
     import uvicorn
     
-    logger.info(f"Iniciando servidor na porta {PORT}")
+    logger.info(f"Iniciando servidor em {BACKEND_BIND_HOST}:{BACKEND_BIND_PORT}")
     uvicorn.run(
         "server:app",
-        host="0.0.0.0",
-        port=PORT,
+        host=BACKEND_BIND_HOST,
+        port=BACKEND_BIND_PORT,
         reload=False,  # Desabilitado para evitar loops
         log_level="info"
     )

@@ -76,7 +76,7 @@ if ! command -v nginx &> /dev/null; then
     echo "  sudo cp nginx.conf /etc/nginx/sites-available/dom360"
     echo "  sudo ln -s /etc/nginx/sites-available/dom360 /etc/nginx/sites-enabled/"
     echo "  sudo nginx -t && sudo systemctl restart nginx"
-    echo "  Adicione ao /etc/hosts: 127.0.0.1 srcjohann.com.br api.srcjohann.com.br"
+    echo "  Adicione ao /etc/hosts: 127.0.0.1 ${PUBLIC_FRONTEND_URL#http://} ${PUBLIC_BACKEND_URL#http://}"
 else
     echo -e "${GREEN}✓${NC} Nginx instalado"
 fi
@@ -98,7 +98,7 @@ else
         echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db} criado"
     else
         echo -e "${RED}✗${NC} Falha ao criar banco. Tentando com psql..."
-        PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -c "CREATE DATABASE ${DB_NAME:-dom360_db};" 2>/dev/null
+    PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -c "CREATE DATABASE ${DB_NAME:-dom360_db};" 2>/dev/null
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db} criado via psql"
         else
@@ -221,8 +221,8 @@ fi
 
 # Verificar se backend está respondendo
 for i in {1..10}; do
-    if curl -s http://localhost:${BACKEND_PORT:-3001}/api/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Backend rodando em http://localhost:${BACKEND_PORT:-3001}"
+    if curl -s http://${INTERNAL_BACKEND_HOST:-localhost}:${INTERNAL_BACKEND_PORT:-3001}/api/health > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} Backend rodando em http://${INTERNAL_BACKEND_HOST:-localhost}:${INTERNAL_BACKEND_PORT:-3001} | ${PUBLIC_BACKEND_URL}"
         break
     fi
     if [ $i -eq 10 ]; then
@@ -249,7 +249,7 @@ if ! ps -p $FRONTEND_PID > /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} Frontend rodando em http://localhost:5173"
+echo -e "${GREEN}✓${NC} Frontend rodando em http://${INTERNAL_FRONTEND_HOST:-localhost}:${INTERNAL_FRONTEND_PORT:-5173} | ${PUBLIC_FRONTEND_URL}"
 
 # ============================================================================
 # Pronto!
