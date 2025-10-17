@@ -1,0 +1,236 @@
+/* Metrics Panel - Estilos específicos */
+
+/* Ajustes para consistência de layout */
+.metrics-panel-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+/* Metrics Summary Cards */
+.metrics-summary {
+  margin-bottom: 1.5rem;
+}
+
+.metrics-summary .metric-card {
+  text-align: center;
+  padding: 1.5rem 1rem !important;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  line-height: 1.2;
+}
+
+.metric-sublabel {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+/* Chart Controls */
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.control-select {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control-select:hover {
+  border-color: var(--accent-color);
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+}
+
+/* Chart Container */
+.chart-container {
+  margin-top: 1rem;
+  padding: 1rem 0;
+}
+
+/* Custom Tooltip for Recharts */
+.custom-tooltip {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.875rem;
+  box-shadow: var(--shadow-hover);
+}
+
+.tooltip-label {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.custom-tooltip p {
+  margin: 0.25rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Inbox Cards */
+.inbox-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.inbox-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left-width: 4px;
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.inbox-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.inbox-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.inbox-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.current-badge {
+  background: var(--accent-color);
+  color: white;
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.inbox-card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Metadata */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0;
+}
+
+.metadata-mono {
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+/* Tools Section */
+.tools-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.tools-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tool-badge {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  font-family: 'Courier New', 'Monaco', monospace;
+  transition: all 0.2s ease;
+}
+
+.tool-badge:hover {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .metrics-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .chart-controls {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+  
+  .control-select {
+    flex: 1;
+  }
+  
+  .inbox-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+  }
+}
