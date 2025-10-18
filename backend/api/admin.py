@@ -60,12 +60,12 @@ class TenantResponse(BaseModel):
 
 class InboxAssociation(BaseModel):
     """Associate inbox to tenant"""
-    inbox_id: str = Field(..., description="Inbox UUID")
+    inbox_id: int = Field(..., description="Inbox ID (integer, Chatwoot inbox id)")
 
 
 class InboxBulkAssociation(BaseModel):
     """Associate multiple inboxes to tenant"""
-    inbox_ids: List[str] = Field(..., description="List of Inbox UUIDs")
+    inbox_ids: List[int] = Field(..., description="List of Inbox IDs (integers)")
 
 
 class InboxCreate(BaseModel):
@@ -87,7 +87,7 @@ class InboxUpdate(BaseModel):
 
 class InboxResponse(BaseModel):
     """Inbox response"""
-    id: str
+    id: int
     tenant_id: int  # Changed from str to int
     name: str
     external_id: Optional[str] = None  # Maps to chatwoot_inbox_id
@@ -646,12 +646,14 @@ async def create_inbox(
         config = {"agent_type": data.agent_type or "SDR"}
         
         # Insert inbox (note: id and chatwoot_inbox_id must be provided)
+        # The database schema requires `id` (integer) to be provided (no default sequence),
+        # so we must set id = external_id (chatwoot inbox id).
         query = """
-            INSERT INTO inboxes (tenant_id, name, chatwoot_inbox_id, config, is_active)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO inboxes (id, tenant_id, name, chatwoot_inbox_id, config, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id, tenant_id, name, chatwoot_inbox_id, inbox_type, is_active, created_at, updated_at, config
         """
-        
+
         # Use external_id as both id and chatwoot_inbox_id if provided
         inbox_id = int(data.external_id) if data.external_id else None
         if not inbox_id:
@@ -659,8 +661,9 @@ async def create_inbox(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="external_id (inbox ID) is required"
             )
-        
+
         cursor.execute(query, (
+            inbox_id,
             data.tenant_id,
             data.name,
             inbox_id,
@@ -695,6 +698,35 @@ async def create_inbox(
         
     except HTTPException:
         raise
+    except psycopg2.IntegrityError as e:
+        # Handle DB integrity errors like duplicate primary key (id)
+        conn.rollback()
+        logger.error(f"Integrity error creating inbox: {e}")
+
+        msg = str(e).lower()
+        constraint = None
+        try:
+            constraint = e.diag.constraint_name if hasattr(e, 'diag') else None
+        except Exception:
+            constraint = None
+
+        if constraint and 'inboxes_pkey' in constraint.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Inbox with id '{inbox_id}' already exists"
+            )
+
+        if 'key (id)' in msg or 'inboxes_pkey' in msg:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Inbox with id '{inbox_id}' already exists"
+            )
+
+        # Fallback for other integrity errors
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Inbox creation conflict: {str(e)}"
+        )
     except Exception as e:
         conn.rollback()
         logger.error(f"Error creating inbox: {e}")
@@ -708,7 +740,7 @@ async def create_inbox(
 
 @router.put("/inboxes/{inbox_id}", response_model=InboxResponse)
 async def update_inbox(
-    inbox_id: str,
+    inbox_id: int,
     data: InboxUpdate,
     request: Request,
     user: AuthContext = Depends(require_master)
@@ -818,7 +850,7 @@ async def update_inbox(
 
 @router.delete("/inboxes/{inbox_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_inbox(
-    inbox_id: str,
+    inbox_id: int,
     request: Request,
     user: AuthContext = Depends(require_master)
 ):
@@ -1076,7 +1108,7 @@ async def associate_multiple_inboxes_to_tenant(
 @router.delete("/tenants/{tenant_id}/inboxes/{inbox_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def dissociate_inbox_from_tenant(
     tenant_id: int,  # Changed from str to int
-    inbox_id: str,
+    inbox_id: int,
     request: Request,
     user: AuthContext = Depends(require_master)
 ):

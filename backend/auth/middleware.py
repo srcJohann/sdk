@@ -319,7 +319,12 @@ async def log_audit(
         """
         
         import json
-        
+
+        # Use default=str to safely serialize datetimes and other non-serializable types
+        old_values_json = json.dumps(old_values, default=str) if old_values is not None else None
+        new_values_json = json.dumps(new_values, default=str) if new_values is not None else None
+        metadata_json = json.dumps(metadata, default=str) if metadata is not None else None
+
         cursor.execute(query, (
             user.user_id,
             user.role.value,
@@ -327,9 +332,9 @@ async def log_audit(
             action,
             resource_type,
             resource_id,
-            json.dumps(old_values) if old_values else None,
-            json.dumps(new_values) if new_values else None,
-            json.dumps(metadata) if metadata else None,
+            old_values_json,
+            new_values_json,
+            metadata_json,
             ip_address,
             user_agent
         ))

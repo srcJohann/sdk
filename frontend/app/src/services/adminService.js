@@ -556,6 +556,9 @@ export default {
   // Inboxes
   getInboxes: listAllInboxes,
   listAllInboxes,
+  createInbox,
+  updateInbox,
+  deleteInbox,
   getTenantInboxes,
   associateInboxToTenant,
   bulkAssociateInboxesToTenant,
