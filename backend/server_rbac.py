@@ -106,12 +106,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS - Configuração segura para produção
+# IMPORTANTE: allow_origins=["*"] + allow_credentials=True é INVÁLIDO
+# Navegadores modernos rejeitam essa combinação
+# Use domínios específicos em produção
+CORS_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if os.getenv('CORS_ORIGINS') else [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3001",
+    "http://srcjohann.com.br",
+    "http://api.srcjohann.com.br",
+    "https://srcjohann.com.br",
+    "https://api.srcjohann.com.br",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especificar domínios
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

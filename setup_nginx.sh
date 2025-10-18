@@ -3,6 +3,9 @@
 # ============================================================================
 # DOM360 - Configuração do Nginx Reverse Proxy
 # ============================================================================
+# Este script configura o Nginx como reverse proxy para frontend e backend
+# Corrige o problema de placeholders não expandidos do nginx.conf
+# ============================================================================
 
 set -e
 
@@ -11,53 +14,94 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Diretório base
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo -e "${BLUE}Configurando Nginx Reverse Proxy...${NC}"
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}    DOM360 - Nginx Reverse Proxy Setup${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
 
 # Verificar se está rodando como root ou sudo
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}✗${NC} Execute como root: sudo $0"
+    echo -e "${RED}✗ Este script precisa ser executado como root${NC}"
+    echo -e "  Use: ${CYAN}sudo $0${NC}"
     exit 1
 fi
 
 # Verificar se Nginx está instalado
 if ! command -v nginx &> /dev/null; then
-    echo -e "${YELLOW}Instalando Nginx...${NC}"
+    echo -e "${YELLOW}⚠ Nginx não encontrado. Instalando...${NC}"
     apt update
     apt install -y nginx
-    echo -e "${GREEN}✓${NC} Nginx instalado"
+    echo -e "${GREEN}✓ Nginx instalado${NC}"
 fi
 
-# Copiar configuração
-echo -e "${BLUE}Gerando e copiando configuração do Nginx...${NC}"
+# Verificar se envsubst está instalado
+if ! command -v envsubst &> /dev/null; then
+    echo -e "${YELLOW}⚠ envsubst não encontrado. Instalando gettext-base...${NC}"
+    apt update
+    apt install -y gettext-base
+    echo -e "${GREEN}✓ gettext-base instalado${NC}"
+fi
 
-# Load .env variables (simple parser)
-set -o allexport
+# Load .env variables
+echo -e "${BLUE}⚙ Carregando variáveis do .env...${NC}"
 if [ -f "$BASE_DIR/.env" ]; then
+  set -o allexport
   # shellcheck disable=SC1091
   source "$BASE_DIR/.env"
+  set +o allexport
+  echo -e "${GREEN}✓ Variáveis carregadas${NC}"
+else
+  echo -e "${RED}✗ Arquivo .env não encontrado!${NC}"
+  exit 1
 fi
-set +o allexport
 
+# Set defaults
+INTERNAL_FRONTEND_HOST=${INTERNAL_FRONTEND_HOST:-localhost}
+INTERNAL_FRONTEND_PORT=${INTERNAL_FRONTEND_PORT:-5173}
+INTERNAL_BACKEND_HOST=${INTERNAL_BACKEND_HOST:-localhost}
+INTERNAL_BACKEND_PORT=${INTERNAL_BACKEND_PORT:-3001}
+PUBLIC_FRONTEND_HOST=${PUBLIC_FRONTEND_HOST:-srcjohann.com.br}
+PUBLIC_BACKEND_HOST=${PUBLIC_BACKEND_HOST:-api.srcjohann.com.br}
+
+echo ""
+echo -e "${BLUE}📋 Configuração:${NC}"
+echo "  Frontend interno:  ${INTERNAL_FRONTEND_HOST}:${INTERNAL_FRONTEND_PORT}"
+echo "  Frontend público:  ${PUBLIC_FRONTEND_HOST}"
+echo "  Backend interno:   ${INTERNAL_BACKEND_HOST}:${INTERNAL_BACKEND_PORT}"
+echo "  Backend público:   ${PUBLIC_BACKEND_HOST}"
+echo ""
+
+# Backup existing configuration
 NGINX_SRC="$BASE_DIR/nginx.conf"
 NGINX_DEST="/etc/nginx/sites-available/dom360"
 
-# Use envsubst if available, otherwise fallback to sed replacements
-if command -v envsubst &> /dev/null; then
-  envsubst < "$NGINX_SRC" > "$NGINX_DEST"
-else
-  cp "$NGINX_SRC" "$NGINX_DEST"
-  sed -i "s|\${INTERNAL_FRONTEND_HOST:-localhost}|${INTERNAL_FRONTEND_HOST:-localhost}|g" "$NGINX_DEST" || true
-  sed -i "s|\${INTERNAL_FRONTEND_PORT:-5173}|${INTERNAL_FRONTEND_PORT:-5173}|g" "$NGINX_DEST" || true
-  sed -i "s|\${INTERNAL_BACKEND_HOST:-localhost}|${INTERNAL_BACKEND_HOST:-localhost}|g" "$NGINX_DEST" || true
-  sed -i "s|\${INTERNAL_BACKEND_PORT:-3001}|${INTERNAL_BACKEND_PORT:-3001}|g" "$NGINX_DEST" || true
-  sed -i "s|\${PUBLIC_FRONTEND_HOST:-srcjohann.com.br}|${PUBLIC_FRONTEND_HOST:-srcjohann.com.br}|g" "$NGINX_DEST" || true
-  sed -i "s|\${PUBLIC_BACKEND_HOST:-api.srcjohann.com.br}|${PUBLIC_BACKEND_HOST:-api.srcjohann.com.br}|g" "$NGINX_DEST" || true
+if [ -f "$NGINX_DEST" ]; then
+    BACKUP_FILE="${NGINX_DEST}.backup.$(date +%Y%m%d_%H%M%S)"
+    echo -e "${BLUE}⚙ Fazendo backup da configuração existente...${NC}"
+    cp "$NGINX_DEST" "$BACKUP_FILE"
+    echo -e "${GREEN}✓ Backup salvo em: $BACKUP_FILE${NC}"
 fi
+
+# Generate nginx config using envsubst
+echo -e "${BLUE}⚙ Gerando configuração do Nginx com envsubst...${NC}"
+
+# Export variables for envsubst
+export INTERNAL_FRONTEND_HOST INTERNAL_FRONTEND_PORT
+export INTERNAL_BACKEND_HOST INTERNAL_BACKEND_PORT
+export PUBLIC_FRONTEND_HOST PUBLIC_BACKEND_HOST
+
+# Process template with envsubst
+envsubst '${INTERNAL_FRONTEND_HOST} ${INTERNAL_FRONTEND_PORT} ${INTERNAL_BACKEND_HOST} ${INTERNAL_BACKEND_PORT} ${PUBLIC_FRONTEND_HOST} ${PUBLIC_BACKEND_HOST}' \
+    < "$NGINX_SRC" > "$NGINX_DEST"
+
+echo -e "${GREEN}✓ Configuração gerada em: $NGINX_DEST${NC}"
 
 # Habilitar site
 if [ ! -L /etc/nginx/sites-enabled/dom360 ]; then
