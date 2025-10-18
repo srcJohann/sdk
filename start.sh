@@ -23,6 +23,12 @@ if [ -f "$BASE_DIR/.env" ]; then
     export $(cat "$BASE_DIR/.env" | grep -v '^#' | grep -v '^$' | xargs)
 fi
 
+# Definir valores padrão para evitar comportamento dependente do ambiente
+DB_USER=${DB_USER:-postgres}
+DB_HOST=${DB_HOST:-127.0.0.1}
+DB_NAME=${DB_NAME:-dom360_db_sdk}
+DB_PASSWORD=${DB_PASSWORD:-admin}
+
 # ============================================================================
 # Banner
 # ============================================================================
@@ -59,11 +65,11 @@ fi
 echo -e "${GREEN}✓${NC} Node.js: $(node --version)"
 
 # PostgreSQL
-if ! psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -c "SELECT version();" > /dev/null 2>&1; then
-    echo -e "${YELLOW}!${NC} PostgreSQL não acessível. Tentando sem senha..."
+if ! PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -c "SELECT version();" > /dev/null 2>&1; then
+    echo -e "${YELLOW}!${NC} PostgreSQL não acessível com as credenciais fornecidas. Tentando sem senha local..."
     if ! psql -c "SELECT version();" > /dev/null 2>&1; then
         echo -e "${RED}✗${NC} PostgreSQL não está acessível!"
-        echo "  Configure o arquivo .env com DB_PASSWORD ou use ./configure_postgres.sh"
+        echo "  Configure o arquivo .env com DB_USER/DB_PASSWORD/DB_HOST corretos ou use ./configure_postgres.sh"
         exit 1
     fi
 fi
@@ -88,40 +94,79 @@ fi
 echo ""
 echo -e "${BLUE}[2/5]${NC} Verificando banco de dados..."
 
-if psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw ${DB_NAME:-dom360_db_sdk}; then
-    echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} existe"
+if PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw ${DB_NAME}; then
+    echo -e "${GREEN}✓${NC} Banco ${DB_NAME} existe"
 else
     echo -e "${YELLOW}!${NC} Banco não encontrado. Criando banco e aplicando schema..."
-    
-    # Criar banco de dados
-    if createdb -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} ${DB_NAME:-dom360_db_sdk} 2>/dev/null; then
-        echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} criado"
-    else
-        echo -e "${RED}✗${NC} Falha ao criar banco. Tentando com psql..."
-    PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -c "CREATE DATABASE ${DB_NAME:-dom360_db_sdk};" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} criado via psql"
-        else
-            echo -e "${RED}✗${NC} Falha ao criar banco!"
-            exit 1
+
+    # Try to create DB using: sudo -n -u postgres, sudo -u postgres, createdb, psql
+    CREATEDB_DONE=0
+    if command -v sudo > /dev/null 2>&1; then
+        if sudo -n -u postgres createdb ${DB_NAME} 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Banco ${DB_NAME} criado (via sudo -n -u postgres)"
+            CREATEDB_DONE=1
+        elif sudo -u postgres createdb ${DB_NAME} 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Banco ${DB_NAME} criado (via sudo -u postgres)"
+            CREATEDB_DONE=1
         fi
     fi
-    
-    # Aplicar schema
-    if PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME:-dom360_db_sdk}"
-        # Run migrations wrapper (if present)
-        if [ -f "$BASE_DIR/database/migrations/001_schema_apply.sql" ]; then
-            PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/migrations/001_schema_apply.sql" > /dev/null 2>&1 || true
+
+    if [ $CREATEDB_DONE -eq 0 ]; then
+        if PGPASSWORD=${DB_PASSWORD} createdb -U ${DB_USER} -h ${DB_HOST} ${DB_NAME} 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Banco ${DB_NAME} criado (via createdb)"
+            CREATEDB_DONE=1
+        elif PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Banco ${DB_NAME} criado via psql"
+            CREATEDB_DONE=1
         fi
-        # Run seeds
-        if [ -f "$BASE_DIR/database/seeds/001_seed_master.sql" ]; then
-            echo "  Aplicando seed do master user..."
-            PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/seeds/001_seed_master.sql" || echo "Falha ao aplicar seed (verifique logs)"
+    fi
+
+    if [ $CREATEDB_DONE -ne 1 ]; then
+        echo -e "${RED}✗${NC} Falha ao criar banco! Tente criar manualmente com sudo -u postgres createdb ${DB_NAME} ou verifique credenciais"
+        exit 1
+    fi
+
+    # Apply schema: try sudo non-interactive, sudo interactive, then PGPASSWORD psql
+    SCHEMA_DONE=0
+    if command -v sudo > /dev/null 2>&1; then
+        if sudo -n -u postgres psql -d ${DB_NAME} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME} (via sudo -n -u postgres)"
+            SCHEMA_DONE=1
+        elif sudo -u postgres psql -d ${DB_NAME} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME} (via sudo -u postgres)"
+            SCHEMA_DONE=1
         fi
-    else
+    fi
+
+    if [ $SCHEMA_DONE -eq 0 ]; then
+        if PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -d ${DB_NAME} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME}"
+            SCHEMA_DONE=1
+        fi
+    fi
+
+    if [ $SCHEMA_DONE -ne 1 ]; then
         echo -e "${RED}✗${NC} Falha ao aplicar schema!"
         exit 1
+    fi
+
+    # Run migrations wrapper (if present)
+    if [ -f "$BASE_DIR/database/migrations/001_schema_apply.sql" ]; then
+        if command -v sudo > /dev/null 2>&1; then
+            sudo -n -u postgres psql -d ${DB_NAME} -f "$BASE_DIR/database/migrations/001_schema_apply.sql" > /dev/null 2>&1 || true
+        else
+            PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -d ${DB_NAME} -f "$BASE_DIR/database/migrations/001_schema_apply.sql" > /dev/null 2>&1 || true
+        fi
+    fi
+
+    # Run seeds
+    if [ -f "$BASE_DIR/database/seeds/001_seed_master.sql" ]; then
+        echo "  Aplicando seed do master user..."
+        if command -v sudo > /dev/null 2>&1; then
+            sudo -n -u postgres psql -d ${DB_NAME} -f "$BASE_DIR/database/seeds/001_seed_master.sql" || echo "Falha ao aplicar seed (verifique logs)"
+        else
+            PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -h ${DB_HOST} -d ${DB_NAME} -f "$BASE_DIR/database/seeds/001_seed_master.sql" || echo "Falha ao aplicar seed (verifique logs)"
+        fi
     fi
 fi
 
@@ -193,6 +238,11 @@ cleanup() {
     if [ ! -z "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null || true
     fi
+
+    # Fechar tail se estiver rodando
+    if [ ! -z "$TAIL_PID" ]; then
+        kill $TAIL_PID 2>/dev/null || true
+    fi
     
     # Matar processos remanescentes
     pkill -f "uvicorn server:app" 2>/dev/null || true
@@ -209,56 +259,77 @@ echo -e "${CYAN}➜ Iniciando Backend (FastAPI com RBAC)...${NC}"
 cd "$BASE_DIR"
 source venv/bin/activate
 
-# Verificar se server_rbac.py existe, senão usar server.py
-if [ -f "backend/server_rbac.py" ]; then
-    echo "  Usando server_rbac.py (com autenticação)"
-    python backend/server_rbac.py > "$BASE_DIR/logs/backend.log" 2>&1 &
+# Consistent backend host/port vars
+BACKEND_HOST=${INTERNAL_BACKEND_HOST:-127.0.0.1}
+BACKEND_PORT=${INTERNAL_BACKEND_PORT:-3001}
+
+# Se o backend já responde no endpoint /api/health, não tenta iniciar novamente
+if curl -s http://${BACKEND_HOST}:${BACKEND_PORT}/api/health > /dev/null 2>&1; then
+    echo -e "${GREEN}✓${NC} Backend já está rodando em http://${BACKEND_HOST}:${BACKEND_PORT}"
+    # tenta recuperar PID de um processo conhecido (server_rbac.py / uvicorn)
+    BACKEND_PID=$(pgrep -f "server_rbac.py|uvicorn" | head -n1 || true)
 else
-    echo "  Usando server.py (sem autenticação - legacy)"
-    python backend/server.py > "$BASE_DIR/logs/backend.log" 2>&1 &
-fi
-BACKEND_PID=$!
-
-# Aguardar backend iniciar
-sleep 2
-
-if ! ps -p $BACKEND_PID > /dev/null; then
-    echo -e "${RED}✗${NC} Backend falhou ao iniciar!"
-    cat "$BASE_DIR/logs/backend.log"
-    exit 1
-fi
-
-# Verificar se backend está respondendo
-for i in {1..10}; do
-    if curl -s http://${INTERNAL_BACKEND_HOST:-127.0.0.1}:${INTERNAL_BACKEND_PORT:-3001}/api/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Backend rodando em http://${INTERNAL_BACKEND_HOST:-127.0.0.1}:${INTERNAL_BACKEND_PORT:-3001} | ${PUBLIC_BACKEND_URL}"
-        break
+    # Verificar se server_rbac.py existe, senão usar server.py
+    if [ -f "backend/server_rbac.py" ]; then
+        echo "  Usando server_rbac.py (com autenticação)"
+        python backend/server_rbac.py > "$BASE_DIR/logs/backend.log" 2>&1 &
+    else
+        echo "  Usando server.py (sem autenticação - legacy)"
+        python backend/server.py > "$BASE_DIR/logs/backend.log" 2>&1 &
     fi
-    if [ $i -eq 10 ]; then
-        echo -e "${RED}✗${NC} Backend não respondeu!"
+    BACKEND_PID=$!
+
+    # Aguardar backend iniciar
+    sleep 2
+
+    if ! ps -p $BACKEND_PID > /dev/null; then
+        echo -e "${RED}✗${NC} Backend falhou ao iniciar!"
         cat "$BASE_DIR/logs/backend.log"
         exit 1
     fi
-    sleep 1
-done
+
+    # Verificar se backend está respondendo
+    for i in {1..10}; do
+        if curl -s http://${BACKEND_HOST}:${BACKEND_PORT}/api/health > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} Backend rodando em http://${BACKEND_HOST}:${BACKEND_PORT} | ${PUBLIC_BACKEND_URL}"
+            break
+        fi
+        if [ $i -eq 10 ]; then
+            echo -e "${RED}✗${NC} Backend não respondeu!"
+            cat "$BASE_DIR/logs/backend.log"
+            exit 1
+        fi
+        sleep 1
+    done
+fi
 
 # Iniciar Frontend
 echo -e "${CYAN}➜ Iniciando Frontend (Vite)...${NC}"
 cd "$BASE_DIR/frontend/app"
 
-npm run dev > "$BASE_DIR/logs/frontend.log" 2>&1 &
-FRONTEND_PID=$!
+# Consistent frontend host/port vars
+FRONTEND_HOST=${INTERNAL_FRONTEND_HOST:-127.0.0.1}
+FRONTEND_PORT=${INTERNAL_FRONTEND_PORT:-5173}
 
-# Aguardar frontend iniciar
-sleep 3
+# Se o frontend já responde, não tenta iniciar novamente
+if curl -s http://${FRONTEND_HOST}:${FRONTEND_PORT} > /dev/null 2>&1; then
+    echo -e "${GREEN}✓${NC} Frontend já está rodando em http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+    FRONTEND_PID=$(pgrep -f "vite" | head -n1 || true)
+else
+    npm run dev > "$BASE_DIR/logs/frontend.log" 2>&1 &
+    FRONTEND_PID=$!
 
-if ! ps -p $FRONTEND_PID > /dev/null; then
-    echo -e "${RED}✗${NC} Frontend falhou ao iniciar!"
-    cat "$BASE_DIR/logs/frontend.log"
-    exit 1
+    # Aguardar frontend iniciar
+    sleep 3
+
+    if ! ps -p $FRONTEND_PID > /dev/null; then
+        echo -e "${RED}✗${NC} Frontend falhou ao iniciar!"
+        cat "$BASE_DIR/logs/frontend.log"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓${NC} Frontend rodando em http://${FRONTEND_HOST}:${FRONTEND_PORT} | ${PUBLIC_FRONTEND_URL}"
 fi
-
-echo -e "${GREEN}✓${NC} Frontend rodando em http://${INTERNAL_FRONTEND_HOST:-127.0.0.1}:${INTERNAL_FRONTEND_PORT:-5173} | ${PUBLIC_FRONTEND_URL}"
 
 # ============================================================================
 # Pronto!
@@ -294,9 +365,9 @@ echo ""
 echo -e "${YELLOW}Pressione Ctrl+C para parar todos os serviços${NC}"
 echo ""
 
-# Mostrar logs em tempo real
+# Mostrar logs em tempo real (rodado como filho do script)
 tail -f "$BASE_DIR/logs/backend.log" "$BASE_DIR/logs/frontend.log" &
 TAIL_PID=$!
 
-# Aguardar
-wait $BACKEND_PID $FRONTEND_PID
+# Aguardar o tail (é filho direto) — assim o script mantém-se vivo enquanto logs forem exibidos
+wait $TAIL_PID
