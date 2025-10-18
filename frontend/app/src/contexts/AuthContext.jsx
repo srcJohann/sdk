@@ -63,11 +63,31 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Login failed');
+        // Try parse JSON error, but fallback to plain text if body is empty or not JSON
+        let errorBody = null;
+        try {
+          errorBody = await response.json();
+        } catch (e) {
+          try {
+            errorBody = await response.text();
+          } catch (e2) {
+            errorBody = null;
+          }
+        }
+
+        const message = (errorBody && (errorBody.detail || errorBody.message)) || errorBody || 'Login failed';
+        throw new Error(message);
       }
 
-      const data = await response.json();
+      // Parse successful response, but be defensive in case body is empty/non-JSON
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // Response wasn't JSON — treat as error
+        const text = await response.text().catch(() => null);
+        throw new Error(text || 'Invalid server response');
+      }
       
       // Store token in localStorage or sessionStorage based on remember flag
       try {

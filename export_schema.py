@@ -27,9 +27,9 @@ except ImportError:
     print("Aviso: python-dotenv não instalado. Usando apenas variáveis de ambiente do sistema.")
 
 # Credenciais do banco
-DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_HOST = os.getenv('DB_HOST', '127.0.0.1')
 DB_PORT = os.getenv('DB_PORT', '5432')
-DB_NAME = os.getenv('DB_NAME', 'dom360_db')
+DB_NAME = os.getenv('DB_NAME', 'dom360_db_sdk')
 DB_USER = os.getenv('DB_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'admin')
 

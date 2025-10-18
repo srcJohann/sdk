@@ -24,8 +24,9 @@ const LoginPage = ({ onLogin }) => {
 
     if (!formData.password) {
       newErrors.password = 'O campo senha é obrigatório';
-    } else if (formData.password.length < 4) {
-      newErrors.password = 'A senha deve ter no mínimo 4 caracteres';
+    } else if (formData.password.length < 8) {
+      // Backend requires min_length=8 for passwords
+      newErrors.password = 'A senha deve ter no mínimo 8 caracteres';
     }
 
     setErrors(newErrors);

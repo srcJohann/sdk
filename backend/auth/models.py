@@ -124,8 +124,24 @@ class UserResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     """Login request"""
-    email: str = Field(..., description="User email")
-    password: str = Field(..., description="User password")
+    # Allow clients to send either 'email' or 'username' to authenticate
+    email: str | None = Field(None, description="User email")
+    username: str | None = Field(None, description="Username (alternate to email)")
+    password: str = Field(..., min_length=8, description="User password")
+
+    @classmethod
+    def validate_identifiers(cls, values):
+        # pydantic root validators are more verbose; do a simple check here
+        if not values.get('email') and not values.get('username'):
+            raise ValueError('Either email or username must be provided')
+        return values
+
+    # Use pydantic root validator to enforce presence of at least one identifier
+    from pydantic import root_validator
+
+    @root_validator(pre=True)
+    def _ensure_identifier(cls, values):
+        return cls.validate_identifiers(values)
 
 
 class LoginResponse(BaseModel):

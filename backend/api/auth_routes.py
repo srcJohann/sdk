@@ -58,9 +58,10 @@ async def login(data: LoginRequest, request: Request):
     rbac = RBACManager(conn)
     
     try:
-        # Authenticate user
-        user = rbac.authenticate_user(data.email, data.password)
-        
+        # Authenticate user (support either email or username)
+        identifier = data.email or data.username
+        user = rbac.authenticate_user(identifier, data.password)
+
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

@@ -88,19 +88,19 @@ fi
 echo ""
 echo -e "${BLUE}[2/5]${NC} Verificando banco de dados..."
 
-if psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw ${DB_NAME:-dom360_db}; then
-    echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db} existe"
+if psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw ${DB_NAME:-dom360_db_sdk}; then
+    echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} existe"
 else
     echo -e "${YELLOW}!${NC} Banco não encontrado. Criando banco e aplicando schema..."
     
     # Criar banco de dados
-    if createdb -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} ${DB_NAME:-dom360_db} 2>/dev/null; then
-        echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db} criado"
+    if createdb -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} ${DB_NAME:-dom360_db_sdk} 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} criado"
     else
         echo -e "${RED}✗${NC} Falha ao criar banco. Tentando com psql..."
-    PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -c "CREATE DATABASE ${DB_NAME:-dom360_db};" 2>/dev/null
+    PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -c "CREATE DATABASE ${DB_NAME:-dom360_db_sdk};" 2>/dev/null
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db} criado via psql"
+            echo -e "${GREEN}✓${NC} Banco ${DB_NAME:-dom360_db_sdk} criado via psql"
         else
             echo -e "${RED}✗${NC} Falha ao criar banco!"
             exit 1
@@ -108,8 +108,17 @@ else
     fi
     
     # Aplicar schema
-    if PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-localhost} -d ${DB_NAME:-dom360_db} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME:-dom360_db}"
+    if PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/schema.sql" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} Schema aplicado ao banco ${DB_NAME:-dom360_db_sdk}"
+        # Run migrations wrapper (if present)
+        if [ -f "$BASE_DIR/database/migrations/001_schema_apply.sql" ]; then
+            PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/migrations/001_schema_apply.sql" > /dev/null 2>&1 || true
+        fi
+        # Run seeds
+        if [ -f "$BASE_DIR/database/seeds/001_seed_master.sql" ]; then
+            echo "  Aplicando seed do master user..."
+            PGPASSWORD=${DB_PASSWORD:-admin} psql -U ${DB_USER:-postgres} -h ${DB_HOST:-127.0.0.1} -d ${DB_NAME:-dom360_db_sdk} -f "$BASE_DIR/database/seeds/001_seed_master.sql" || echo "Falha ao aplicar seed (verifique logs)"
+        fi
     else
         echo -e "${RED}✗${NC} Falha ao aplicar schema!"
         exit 1
@@ -221,8 +230,8 @@ fi
 
 # Verificar se backend está respondendo
 for i in {1..10}; do
-    if curl -s http://${INTERNAL_BACKEND_HOST:-localhost}:${INTERNAL_BACKEND_PORT:-3001}/api/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Backend rodando em http://${INTERNAL_BACKEND_HOST:-localhost}:${INTERNAL_BACKEND_PORT:-3001} | ${PUBLIC_BACKEND_URL}"
+    if curl -s http://${INTERNAL_BACKEND_HOST:-127.0.0.1}:${INTERNAL_BACKEND_PORT:-3001}/api/health > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} Backend rodando em http://${INTERNAL_BACKEND_HOST:-127.0.0.1}:${INTERNAL_BACKEND_PORT:-3001} | ${PUBLIC_BACKEND_URL}"
         break
     fi
     if [ $i -eq 10 ]; then
@@ -249,7 +258,7 @@ if ! ps -p $FRONTEND_PID > /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} Frontend rodando em http://${INTERNAL_FRONTEND_HOST:-localhost}:${INTERNAL_FRONTEND_PORT:-5173} | ${PUBLIC_FRONTEND_URL}"
+echo -e "${GREEN}✓${NC} Frontend rodando em http://${INTERNAL_FRONTEND_HOST:-127.0.0.1}:${INTERNAL_FRONTEND_PORT:-5173} | ${PUBLIC_FRONTEND_URL}"
 
 # ============================================================================
 # Pronto!

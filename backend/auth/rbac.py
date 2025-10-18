@@ -40,11 +40,11 @@ class RBACManager:
                     u.email, u.password_hash, u.is_active,
                     u.created_at, u.updated_at, u.last_login_at
                 FROM users u
-                WHERE LOWER(u.email) = LOWER(%s)
+                WHERE (LOWER(u.email) = LOWER(%s) OR LOWER(u.username) = LOWER(%s))
                 LIMIT 1
             """
-            
-            cursor.execute(query, (email,))
+            # Use email parameter for both comparisons; caller may pass username into the email param
+            cursor.execute(query, (email, email))
             user = cursor.fetchone()
             
             if not user:
