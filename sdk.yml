@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # ============================================================================
   # Backend API (FastAPI)
@@ -6,6 +8,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: dom360-backend:latest
     container_name: dom360-backend
     environment:
       # Database - PostgreSQL na VPS
@@ -36,7 +39,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
     
     networks:
-      - dom360-network
+      - sdk-network
     
     volumes:
       - ./logs:/app/logs
@@ -66,6 +69,11 @@ services:
       start_period: 40s
     
     restart: unless-stopped
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
 
   # ============================================================================
   # Frontend (React + Vite)
@@ -74,13 +82,14 @@ services:
     build:
       context: ./frontend/app
       dockerfile: Dockerfile
+    image: dom360-frontend:latest
     container_name: dom360-frontend
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       VITE_API_URL: ${VITE_API_URL:-https://api.srcjohann.com.br}
     
     networks:
-      - dom360-network
+      - sdk-network
     
     labels:
       # Traefik - Roteamento para sdk.srcjohann.com.br
@@ -98,12 +107,17 @@ services:
       start_period: 10s
     
     restart: unless-stopped
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
 
 # ============================================================================
-# Rede Docker
+# Rede Docker para conectar os serviços
 # ============================================================================
 networks:
-  dom360-network:
+  sdk-network:
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: 1450
