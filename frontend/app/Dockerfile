@@ -1,10 +1,16 @@
 # ==============================================================================
 # Multi-stage Dockerfile para Frontend (React + Vite) - Produção
 # ==============================================================================
+# Otimizado para:
+# - Build eficiente com cache
+# - Imagem final mínima com Node.js (não Nginx)
+# - Non-root user para segurança
+# - Healthchecks funcionais
+# ==============================================================================
 
-# ==============================================================================
+# ============================================================================
 # Stage 1: Build
-# ==============================================================================
+# ============================================================================
 FROM node:18-alpine AS builder
 
 LABEL maintainer="srcjohann"
@@ -12,12 +18,11 @@ LABEL description="DOM360 SDK Frontend Build Stage"
 
 WORKDIR /app
 
-# Copiar package files e lock para instalar dependências
+# Copiar package files
 COPY package*.json ./
-COPY package-lock.json ./
 
-# Instalar todas as dependências (incluindo dev) necessárias para o build
-RUN npm ci && npm cache clean --force
+# Instalar dependências (incluindo dev para build)
+RUN npm ci --prefer-offline --no-audit && npm cache clean --force
 
 # Copiar código fonte
 COPY . .
@@ -25,42 +30,53 @@ COPY . .
 # Build da aplicação
 RUN npm run build
 
-# Opcional: remover dependências de desenvolvimento para reduzir imagem (não necessário
-# para o stage atual já que será copiado apenas o build), mantido como comentário
-# RUN npm prune --production
-
-# ==============================================================================
-# Stage 2: Production com Nginx
-# ==============================================================================
-FROM nginx:alpine
+# ============================================================================
+# Stage 2: Production Runtime com Node.js
+# ============================================================================
+FROM node:18-alpine
 
 LABEL maintainer="srcjohann"
-LABEL description="DOM360 SDK Frontend - Nginx"
+LABEL description="DOM360 SDK Frontend - React + Vite"
 
+# ============================================================================
+# Instalar utilitários
+# ============================================================================
+RUN apk add --no-cache curl ca-certificates
+
+# ============================================================================
+# Criar usuário não-root (se não existir)
+# ============================================================================
+RUN addgroup -S appuser || true && \
+    adduser -S -u 1001 appuser || true
+
+# ============================================================================
+# Instalar serve para servir static files
+# ============================================================================
+RUN npm install -g serve
+
+# ============================================================================
 # Copiar build do estágio anterior
-COPY --from=builder /app/dist /usr/share/nginx/html
+# ============================================================================
+WORKDIR /app
+COPY --from=builder --chown=appuser:appuser /app/dist ./dist
 
-# Copiar configuração customizada do Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Criar usuário não-root
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    chown -R appuser:appuser /usr/share/nginx/html && \
-    chown -R appuser:appuser /var/cache/nginx && \
-    chown -R appuser:appuser /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R appuser:appuser /var/run/nginx.pid
-
+# ============================================================================
 # Mudar para usuário não-root
+# ============================================================================
 USER appuser
 
+# ============================================================================
 # Expor porta
-EXPOSE 8080
+# ============================================================================
+EXPOSE 5173
 
+# ============================================================================
 # Health check
+# ============================================================================
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+    CMD curl -f http://localhost:5173/ || exit 1
 
-# Iniciar Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# ============================================================================
+# Servir aplicação com serve
+# ============================================================================
+CMD ["serve", "-s", "dist", "-l", "5173"]
