@@ -5,11 +5,9 @@ services:
   # Backend API (FastAPI)
   # ============================================================================
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: dom360-backend:latest
+    image: johannalves/sdk-backend:latest
     container_name: dom360-backend
+    pull_policy: always
     environment:
       # Database - PostgreSQL na VPS
       DB_HOST: ${DB_HOST:-host.docker.internal}
@@ -79,11 +77,9 @@ services:
   # Frontend (React + Vite)
   # ============================================================================
   frontend:
-    build:
-      context: ./frontend/app
-      dockerfile: Dockerfile
-    image: dom360-frontend:latest
+    image: johannalves/sdk-frontend:latest
     container_name: dom360-frontend
+    pull_policy: always
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       VITE_API_URL: ${VITE_API_URL:-https://api.srcjohann.com.br}
