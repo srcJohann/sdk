@@ -102,11 +102,9 @@ services:
     restart: unless-stopped
 
 # ============================================================================
-# Rede Docker (conecta com traefik via nome ou rede compartilhada)
+# Rede Docker (conecta com traefik)
 # ============================================================================
 networks:
   dom360-network:
-    driver: bridge
-    # Se usar rede externa do Traefik, descomente:
-    # external: true
-    # name: traefik-network
+    external: true
+    name: network_public
