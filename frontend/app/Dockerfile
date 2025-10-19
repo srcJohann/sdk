@@ -12,18 +12,22 @@ LABEL description="DOM360 SDK Frontend Build Stage"
 
 WORKDIR /app
 
-# Copiar package files
+# Copiar package files e lock para instalar dependências
 COPY package*.json ./
+COPY package-lock.json ./
 
-# Instalar dependências
-RUN npm ci --only=production && \
-    npm cache clean --force
+# Instalar todas as dependências (incluindo dev) necessárias para o build
+RUN npm ci && npm cache clean --force
 
 # Copiar código fonte
 COPY . .
 
 # Build da aplicação
 RUN npm run build
+
+# Opcional: remover dependências de desenvolvimento para reduzir imagem (não necessário
+# para o stage atual já que será copiado apenas o build), mantido como comentário
+# RUN npm prune --production
 
 # ==============================================================================
 # Stage 2: Production com Nginx
