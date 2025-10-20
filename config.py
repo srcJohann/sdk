@@ -72,6 +72,7 @@ CORS_ORIGINS = CORS_ORIGINS_STR.split(',') if CORS_ORIGINS_STR else [
     'http://api.srcjohann.com.br',
     'https://srcjohann.com.br',
     'https://api.srcjohann.com.br',
+    'https://sdk.srcjohann.com.br',
 ]
 
 # Clean up whitespace in CORS origins
