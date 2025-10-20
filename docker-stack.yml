@@ -42,6 +42,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        - VITE_API_URL=https://api.srcjohann.com.br
     environment:
       - NODE_ENV=production
       - PORT=5173

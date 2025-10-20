@@ -7,6 +7,10 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Allow injecting the API URL at build time so the production build embeds the correct backend
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL:-http://localhost:3001}
+
 # Copy package files
 COPY frontend/app/package*.json ./
 
