@@ -16,7 +16,6 @@ httpx
 idna
 itsdangerous
 Jinja2
-jwt
 MarkupSafe
 psycopg2-binary
 pycparser

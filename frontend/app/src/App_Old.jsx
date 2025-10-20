@@ -21,10 +21,10 @@ function App() {
   const [activeView, setActiveView] = useState('chat');
   
   // Configurações do sistema (tenant, inbox, user)
-  const tenantId = import.meta.env.VITE_TENANT_ID;
-  const inboxId = import.meta.env.VITE_INBOX_ID;
-  const userPhone = import.meta.env.VITE_USER_PHONE || '+5511999999999';
-  const userName = import.meta.env.VITE_USER_NAME || 'Usuário';
+  const tenantId = '1';
+  const inboxId = '27';
+  const userPhone = '+5511999999999';
+  const userName = 'Usuário';
   
   // Hook de chat integrado com backend FastAPI ✅
   const {

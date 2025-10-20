@@ -10,15 +10,25 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 import re
+import sys
 
 import httpx
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# Add parent directory to path to import config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from config import (
+    DATABASE_CONFIG,
+    BACKEND_BIND_HOST,
+    BACKEND_BIND_PORT,
+    CORS_ORIGINS,
+    LOG_LEVEL
+)
 
 # Import RBAC modules
 from auth import (
@@ -33,31 +43,15 @@ from auth import (
 # Import API routers
 from api import auth_router, admin_router
 
-# Carregar variáveis de ambiente
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-if not os.path.exists(env_path):
-    env_path = '.env'
-load_dotenv(dotenv_path=env_path)
-
 # Configuração de logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # Configurações
-DATABASE_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': int(os.getenv('DB_PORT', 5432)),
-    'database': os.getenv('DB_NAME', 'dom360_db'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', ''),
-}
-
-# Agent API URL will be read from master_settings table
-FALLBACK_AGENT_API_URL = os.getenv('AGENT_API_URL', 'http://localhost:8000')
-PORT = int(os.getenv('BACKEND_PORT', 3001))
+PORT = BACKEND_BIND_PORT
 
 # Pool de conexões global
 db_pool: Optional[SimpleConnectionPool] = None
@@ -107,20 +101,6 @@ app = FastAPI(
 )
 
 # CORS - Configuração segura para produção
-# IMPORTANTE: allow_origins=["*"] + allow_credentials=True é INVÁLIDO
-# Navegadores modernos rejeitam essa combinação
-# Use domínios específicos em produção
-CORS_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if os.getenv('CORS_ORIGINS') else [
-    "http://localhost:5173",
-    "http://localhost:3001",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3001",
-    "http://srcjohann.com.br",
-    "http://api.srcjohann.com.br",
-    "https://srcjohann.com.br",
-    "https://api.srcjohann.com.br",
-]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -232,7 +212,7 @@ def get_sdr_agent_endpoint(conn) -> str:
             return settings['sdr_agent_endpoint'], settings['sdr_agent_timeout_ms']
         
         logger.warning("Master settings not found, using fallback endpoint")
-        return FALLBACK_AGENT_API_URL, 30000
+        pass
         
     finally:
         cursor.close()
@@ -842,10 +822,11 @@ async def get_dashboard_data(
 
 if __name__ == "__main__":
     import uvicorn
+    logger.info(f"🚀 Iniciando DOM360 Backend em {BACKEND_BIND_HOST}:{PORT}")
     uvicorn.run(
         "server_rbac:app",
-        host="0.0.0.0",
+        host=BACKEND_BIND_HOST,
         port=PORT,
-        reload=False,  # Disabled for production
-        log_level="info"
+        reload=False,
+        log_level=LOG_LEVEL.lower()
     )

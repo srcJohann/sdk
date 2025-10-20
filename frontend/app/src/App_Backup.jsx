@@ -37,10 +37,10 @@ function App() {
   const [activeView, setActiveView] = useState('chat');
   
   // Configurações do sistema
-  const tenantId = user?.tenant_id || import.meta.env.VITE_TENANT_ID;
-  const inboxId = import.meta.env.VITE_INBOX_ID;
-  const userPhone = import.meta.env.VITE_USER_PHONE || '+5511999999999';
-  const userName = user?.name || import.meta.env.VITE_USER_NAME || 'Usuário';
+  const tenantId = user?.tenant_id || '1';
+  const inboxId = '27';
+  const userPhone = '+5511999999999';
+  const userName = user?.name || 'Usuário';
   
   // Hook de chat
   const {

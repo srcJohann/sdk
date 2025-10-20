@@ -47,19 +47,19 @@ function App() {
     autoSave: true,
     language: 'pt-BR',
     storeLocally: true,
-    tenantId: user?.tenant_id || import.meta.env.VITE_TENANT_ID || '1',
-    inboxId: import.meta.env.VITE_INBOX_ID || '27',
+    tenantId: user?.tenant_id || '1',
+    inboxId: '27',
     agentType: 'SDR',
-    phone: user?.phone || import.meta.env.VITE_USER_PHONE || '+5511999999999',
+    phone: user?.phone || '+5511999999999',
   });
   
   // Configurações do sistema
   // Master usa valores das configurações, outros usuários usam valores do user object
-  const tenantId = isMaster ? settings.tenantId : (user?.tenant_id || import.meta.env.VITE_TENANT_ID);
+  const tenantId = isMaster ? settings.tenantId : (user?.tenant_id || '1');
   // Tenants must receive an inbox assigned by Master; do NOT fallback to a global default for tenant users
   const inboxId = isMaster ? settings.inboxId : (user?.inbox_id || null);
-  const userPhone = settings.phone || import.meta.env.VITE_USER_PHONE || '+5511999999999';
-  const userName = user?.name || import.meta.env.VITE_USER_NAME || 'Usuário';
+  const userPhone = settings.phone || '+5511999999999';
+  const userName = user?.name || 'Usuário';
   
   // Hook de chat
   const {
