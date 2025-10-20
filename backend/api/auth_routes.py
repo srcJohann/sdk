@@ -2,27 +2,48 @@
 DOM360 Authentication API Endpoints
 """
 import logging
+import sys
+import os
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 
-from auth import (
-    AuthContext,
-    UserRole,
-    LoginRequest,
-    LoginResponse,
-    UserCreate,
-    UserUpdate,
-    UserResponse,
-    get_current_user,
-    require_role,
-    require_master,
-    require_tenant_admin,
-    RBACManager,
-    create_access_token,
-    JWT_EXPIRATION_HOURS
-)
+try:
+    from ..auth import (
+        AuthContext,
+        UserRole,
+        LoginRequest,
+        LoginResponse,
+        UserCreate,
+        UserUpdate,
+        UserResponse,
+        get_current_user,
+        require_role,
+        require_master,
+        require_tenant_admin,
+        RBACManager,
+        create_access_token,
+        JWT_EXPIRATION_HOURS
+    )
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from auth import (
+        AuthContext,
+        UserRole,
+        LoginRequest,
+        LoginResponse,
+        UserCreate,
+        UserUpdate,
+        UserResponse,
+        get_current_user,
+        require_role,
+        require_master,
+        require_tenant_admin,
+        RBACManager,
+        create_access_token,
+        JWT_EXPIRATION_HOURS
+    )
 
 logger = logging.getLogger(__name__)
 

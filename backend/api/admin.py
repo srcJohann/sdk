@@ -3,6 +3,8 @@ DOM360 Admin API - Master Management Endpoints
 """
 import json
 import logging
+import sys
+import os
 from typing import Optional, List
 from uuid import UUID
 
@@ -11,14 +13,25 @@ import psycopg2
 from pydantic import BaseModel, Field
 from psycopg2.extras import RealDictCursor
 
-from auth import (
-    AuthContext,
-    UserRole,
-    get_current_user,
-    require_master,
-    set_rls_context,
-    log_audit
-)
+try:
+    from ..auth import (
+        AuthContext,
+        UserRole,
+        get_current_user,
+        require_master,
+        set_rls_context,
+        log_audit
+    )
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from auth import (
+        AuthContext,
+        UserRole,
+        get_current_user,
+        require_master,
+        set_rls_context,
+        log_audit
+    )
 
 logger = logging.getLogger(__name__)
 

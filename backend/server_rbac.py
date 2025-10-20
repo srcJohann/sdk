@@ -30,18 +30,30 @@ from config import (
     LOG_LEVEL
 )
 
-# Import RBAC modules
-from auth import (
-    AuthContext,
-    UserRole,
-    get_current_user,
-    get_optional_user,
-    require_tenant_access,
-    set_rls_context
-)
-
-# Import API routers
-from api import auth_router, admin_router
+# Import RBAC modules - handle both relative and absolute imports
+try:
+    # Try relative imports first (when imported as backend.server_rbac)
+    from .auth import (
+        AuthContext,
+        UserRole,
+        get_current_user,
+        get_optional_user,
+        require_tenant_access,
+        set_rls_context
+    )
+    from .api import auth_router, admin_router
+except ImportError:
+    # Fall back to absolute imports (when run directly as python server_rbac.py)
+    sys.path.insert(0, os.path.dirname(__file__))
+    from auth import (
+        AuthContext,
+        UserRole,
+        get_current_user,
+        get_optional_user,
+        require_tenant_access,
+        set_rls_context
+    )
+    from api import auth_router, admin_router
 
 # Configuração de logging
 logging.basicConfig(
@@ -822,11 +834,11 @@ async def get_dashboard_data(
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"🚀 Iniciando DOM360 Backend em {BACKEND_BIND_HOST}:{PORT}")
+    logger.info(f"🚀 Iniciando DOM360 Backend em {BACKEND_BIND_HOST}:{BACKEND_BIND_PORT}")
     uvicorn.run(
-        "server_rbac:app",
+        app,
         host=BACKEND_BIND_HOST,
-        port=PORT,
+        port=BACKEND_BIND_PORT,
         reload=False,
         log_level=LOG_LEVEL.lower()
     )
