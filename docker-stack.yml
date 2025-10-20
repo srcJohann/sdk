@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  backend:
+    image: sdk-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: sdk-backend
+    hostname: backend
+    env_file:
+      - .env
+    environment:
+      - BACKEND_BIND_HOST=0.0.0.0
+      - BACKEND_BIND_PORT=3001
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+    networks:
+      - network_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.backend.rule: "Host(`api.srcjohann.com.br`)"
+        traefik.http.routers.backend.entrypoints: "websecure"
+        traefik.http.routers.backend.tls.certresolver: "lets"
+        traefik.http.services.backend.loadbalancer.server.port: "3001"
+        traefik.http.routers.backend.service: "backend"
+        traefik.http.middlewares.backend-stripprefix.stripprefix.prefixes: "/"
+        traefik.http.routers.backend.middlewares: "backend-stripprefix"
+
+  frontend:
+    image: sdk-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: sdk-frontend
+    hostname: frontend
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - VITE_API_URL=https://api.srcjohann.com.br
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+    networks:
+      - network_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.frontend.rule: "Host(`sdk.srcjohann.com.br`)"
+        traefik.http.routers.frontend.entrypoints: "websecure"
+        traefik.http.routers.frontend.tls.certresolver: "lets"
+        traefik.http.services.frontend.loadbalancer.server.port: "5173"
+        traefik.http.routers.frontend.service: "frontend"
+
+networks:
+  network_public:
+    external: true

@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  backend:
+    image: sdk-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: sdk-backend-dev
+    env_file:
+      - .env
+    environment:
+      - BACKEND_BIND_HOST=0.0.0.0
+      - BACKEND_BIND_PORT=3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app/backend
+      - ./config.py:/app/config.py
+    restart: unless-stopped
+    networks:
+      - sdk-network
+
+  frontend:
+    image: sdk-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: sdk-frontend-dev
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - VITE_API_URL=http://localhost:3001
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/app/dist:/app/dist
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - sdk-network
+
+networks:
+  sdk-network:
+    driver: bridge

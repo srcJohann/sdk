@@ -1,0 +1,42 @@
+# Backend Dockerfile - FastAPI com RBAC
+# Build: docker build -f Dockerfile.backend -t sdk-backend:latest .
+# Run: docker run -p 3001:3001 --env-file .env sdk-backend:latest
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY backend/ ./backend/
+COPY config.py .
+COPY export_schema.py .
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Expose port (from .env)
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import httpx; httpx.get('http://localhost:3001/health')" || exit 1
+
+# Run the application
+CMD ["sh", "-c", "cd /app && python -m uvicorn backend.server_rbac:app --host 0.0.0.0 --port ${BACKEND_BIND_PORT:-3001}"]
