@@ -31,6 +31,9 @@ RUN mkdir -p /app/logs
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Garante que o Python encontre os módulos do backend
+ENV PYTHONPATH=/app
+
 # Expose port (from .env)
 EXPOSE 3001
 

@@ -6,18 +6,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: sdk-backend
-    hostname: backend
     env_file:
       - .env
     environment:
       - BACKEND_BIND_HOST=0.0.0.0
       - BACKEND_BIND_PORT=3001
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
     networks:
       - network_public
     deploy:
@@ -45,19 +38,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: sdk-frontend
-    hostname: frontend
     env_file:
       - .env
     environment:
       - NODE_ENV=production
       - PORT=5173
       - VITE_API_URL=https://api.srcjohann.com.br
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
     networks:
       - network_public
     deploy:
